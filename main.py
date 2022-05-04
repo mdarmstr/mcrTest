@@ -8,44 +8,33 @@ from pymcr.mcr import McrAR
 from pymcr.constraints import ConstraintNonneg, ConstraintNorm
 
 
-def mcrDemo(D, ncomponents):
+def mcrTest(D, R):
+    # X = CS.T
+    sz = np.shape(D)
+    # Initialisation of the component C
+    C = np.random.rand(sz[0], R)
+    S = np.random.rand(sz[1], R)
+    ssr2 = 1e9
+    ssr1 = np.linalg.norm(D - C @ S.T) ** 2
+    eps = 1e-12
 
-    mcrar = McrAR(max_iter=100, st_regr='NNLS', c_regr='NNLS', st_constraints=[ConstraintNorm()], c_constraints=[ConstraintNonneg()], tol_increase=100)
+    while abs(ssr1 - ssr2) / ssr2 > eps:
+        ssr1 = ssr2
+        C = D @ S @ np.linalg.pinv(S.T @ S)
+        S = D.T @ C @ np.linalg.pinv(C.T @ C)
 
-    initialProfiles = np.random.rand(np.size(D, 0), ncomponents)
+        ssr2 = np.linalg.norm(D - C @ S.T) ** 2
+        print(ssr2)
 
-    mcrar.fit(D, C=initialProfiles, verbose=True)
+    return C, S
 
-    fig, ax = plt.subplots(2, 2)
 
-    ax[0, 0].plot(D)
-    ax[0, 0].title.set_text("Raw GC-MS Data")
-    ax[0, 0].set_ylabel("Counts")
-    ax[0, 0].set_xlabel("Acquisitions")
-
-    ax[0, 1].plot(mcrar.C_opt_)
-    ax[0, 1].set_ylabel("Score Intensity")
-    ax[0, 1].set_xlabel("Acquisitions")
-    ax[0, 1].title.set_text("Elution Profiles (C)")
-
-    ax[1, 0].plot(np.arange(35, 601).T, mcrar.ST_opt_.T)
-    ax[1, 0].set_ylabel("Intensity, Normalised")
-    ax[1, 0].set_xlabel("m/z")
-    ax[1, 0].title.set_text("Deconvolved Mass Spectra (S.T)")
-    ax[1, 0].axis(xmin=35, xmax=250)
-
-    ax[1, 1].plot(np.log(mcrar.err[::2] / np.linalg.norm(D)))
-    ax[1, 1].set_ylabel("log10 MSE")
-    ax[1, 1].set_xlabel("Iterations")
-    ax[1, 1].title.set_text("Minimisation of Error")
-
-    plt.show()
 
 
 if __name__ == '__main__':
     D = pd.read_csv("gcms1.csv", sep=",").to_numpy()
-    # plt.plot(D)
-    # plt.show()
-    mcrDemo(D, 4)
+    C, S = mcrTest(D, 3)
+    plt.plot(C)
+    plt.show()
 
 
